@@ -1,0 +1,31 @@
+{% extends 'flatpages/default.html' %}
+
+{% block content %}
+<h1>Поиск новостей</h1>
+
+<form method="get">
+    {{ filterset.form.as_p }}
+    <input type="submit" value="Найти">
+</form>
+
+<table>
+    <thead>
+        <tr>
+            <th>Название</th>
+            <th>Автор</th>
+            <th>Дата создания</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for post in posts %}
+        <tr>
+            <td>{{ post.title }}</td>
+            <td>{{ post.author.user.username }}</td>
+            <td>{{ post.created_at|date:"d.m.Y" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+{% endblock %}
