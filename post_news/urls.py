@@ -1,6 +1,8 @@
+from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
 # Импортируем созданное нами представление
-from .views import PostList, PostDetail, PostSearchView, PostCreateView, PostUpdateView, PostDeleteView
+from .views import PostList, PostDetail, PostSearchView, PostCreateView, PostUpdateView, PostDeleteView, \
+    BaseRegisterView, upgrade_me
 
 urlpatterns = [
    # path — означает путь.
@@ -18,4 +20,14 @@ urlpatterns = [
    path('articles/create/', PostCreateView.as_view(), name='articles_create'),
    path('<int:pk>/edit/', PostUpdateView.as_view(), name='post_edit'),
    path('<int:pk>/delete/', PostDeleteView.as_view(), name='post_delete'),
+   path('login/',
+        LoginView.as_view(template_name='post_news/login.html'),
+        name='login'),
+   path('logout/',
+        LogoutView.as_view(template_name='post_news/logout.html'),
+        name='logout'),
+   path('login/signup/',
+        BaseRegisterView.as_view(template_name='post_news/signup.html'),
+        name='signup'),
+   path('upgrade/', upgrade_me, name='upgrade'),
 ]

@@ -1,12 +1,16 @@
 from datetime import datetime
 
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib.auth.models import User, Group
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
 # Импортируем класс, который говорит нам о том,
 # что в этом представлении мы будем выводить список объектов из БД
-from django.views.generic import ListView, DetailView, DeleteView, UpdateView, CreateView
+from django.views.generic import ListView, DetailView, DeleteView, UpdateView, CreateView, TemplateView
 
 from .filters import PostFilter
-from .forms import PostForm
+from .forms import PostForm, BaseRegisterForm
 from .models import Post
 
 
@@ -64,11 +68,18 @@ class PostSearchView(ListView):
         return context
 
 
-class PostCreateView(CreateView):
+class PremissionRequiredMixin:
+    pass
+
+
+class PostCreateView(LoginRequiredMixin, PermissionRequiredMixin,  CreateView):
     model = Post
     form_class = PostForm
     template_name = 'post_create.html'
     success_url = reverse_lazy('post_list')
+    login_url = reverse_lazy('account_login')
+    permission_required = 'post_news.add_post'
+    raise_exception = True
 
     def form_valid(self, form):
         if 'news/create' in self.request.path:
@@ -79,16 +90,44 @@ class PostCreateView(CreateView):
         return super().form_valid(form)
 
 
-class PostUpdateView(UpdateView):
+class PostUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = Post
     form_class = PostForm
     template_name = 'post_edit.html'
     success_url = reverse_lazy('post_list')
+    login_url = reverse_lazy('account_login')
+    permission_required = 'post_news.change_post'
+    raise_exception = True
 
 
-class PostDeleteView(DeleteView):
+class PostDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = Post
     template_name = 'post_delete.html'
     success_url = reverse_lazy('post_list')
+    login_url = reverse_lazy('account_login')
+    permission_required = 'post_news.delete_post'
+    raise_exception = True
 
 
+class BaseRegisterView(CreateView):
+    model = User
+    form_class = BaseRegisterForm
+    success_url = '/'
+
+
+class IndexView(LoginRequiredMixin, TemplateView):
+    template_name = 'protect/index.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_not_author'] = not self.request.user.groups.filter(name='authors').exists()
+        return context
+
+
+@login_required
+def upgrade_me(request):
+    user = request.user
+    premium_group = Group.objects.get(name='authors')
+    if not request.user.groups.filter(name='authors').exists():
+        premium_group.user_set.add(user)
+    return redirect('/')
