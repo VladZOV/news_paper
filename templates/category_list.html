@@ -1,0 +1,14 @@
+{% extends 'flatpages/default.html' %}
+
+{% block content %}
+{% for category in categories %}
+    <div class="category-item">
+        <h2>
+            <a href="{% url 'category_detail' category.pk %}">
+                {{ category.name }}
+            </a>
+        </h2>
+    </div>
+{% endfor %}
+
+{% endblock %}

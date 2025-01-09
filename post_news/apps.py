@@ -1,6 +1,8 @@
 from django.apps import AppConfig
 
 
-class PostNwesConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
+class PostConfig(AppConfig):
     name = 'post_news'
+
+    def ready(self):
+        import post_news.signals

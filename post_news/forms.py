@@ -3,21 +3,42 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User, Group
 
-from .models import Post
+from .models import Post, PostCategory, Category
 
 
 class PostForm(forms.ModelForm):
+    categories = forms.ModelMultipleChoiceField(
+        queryset=Category.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        required=True
+    )
 
     class Meta:
         model = Post
-        fields = ['author', 'title', 'text',]
+        fields = [
+            'title',
+            'text',
+            'post_type',
+            'author'
+        ]
 
-    def save(self, commit=True, post_type=None):
+    def save(self, commit=True):
+        # Сохраняем пост
         instance = super().save(commit=False)
-        if post_type:
-            instance.post_type = post_type
+
         if commit:
             instance.save()
+
+        # Очищаем существующие связи
+        PostCategory.objects.filter(post=instance).delete()
+
+        # Создаем новые связи с категориями
+        for category in self.cleaned_data['categories']:
+            PostCategory.objects.create(
+                post=instance,
+                category=category
+            )
+
         return instance
 
 

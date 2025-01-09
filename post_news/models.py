@@ -1,5 +1,7 @@
+from django.core.mail import send_mail
 from django.db import models
 from django.contrib.auth.models import User
+from django.template.loader import render_to_string
 
 
 class Author(models.Model):
@@ -36,6 +38,7 @@ class Author(models.Model):
 
 class Category(models.Model):
     name = models.CharField(max_length=255, unique=True)
+    subscribers = models.ManyToManyField(User, related_name='subscribed_categories', blank=True)
 
     def __str__(self):
         return self.name
@@ -70,6 +73,21 @@ class Post(models.Model):
 
     def __str__(self):
         return self.title
+
+    def notify_subscribers(self):
+        for subscriber in self.categories.values_list('subscribers', flat=True):
+            user = User.objects.get(id=subscriber)
+            subject = self.title
+            message = render_to_string('email_template.html', {
+                'username': user.username,
+                'title': self.title,
+                'preview': self.text[:50]  # первые 50 символов текста
+            })
+            send_mail(subject, message, 'from@example.com', [user.email])
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.notify_subscribers()
 
 
 class PostCategory(models.Model):

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Добро пожаловать!</title>
+</head>
+<body>
+    {% load account %}
+    <h1>Добро пожаловать, {{ request.user.username }}!</h1>
+    <p>Спасибо за регистрацию в нашем приложении. Чтобы активировать ваш аккаунт, пожалуйста, перейдите по следующей ссылке:</p>
+    <p><a href="{{ activate_url }}">Активировать аккаунт</a></p>
+    <p>С уважением, команда PostNews.</p>
+</body>
+</html>

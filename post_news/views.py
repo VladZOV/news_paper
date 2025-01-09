@@ -1,9 +1,12 @@
 from datetime import datetime
 
+from django.utils import timezone
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.models import User, Group
-from django.shortcuts import redirect
+from django.core.exceptions import ValidationError
+from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse_lazy
 # Импортируем класс, который говорит нам о том,
 # что в этом представлении мы будем выводить список объектов из БД
@@ -11,7 +14,7 @@ from django.views.generic import ListView, DetailView, DeleteView, UpdateView, C
 
 from .filters import PostFilter
 from .forms import PostForm, BaseRegisterForm
-from .models import Post
+from .models import Post, Category, PostCategory
 
 
 class PostList(ListView):
@@ -68,10 +71,6 @@ class PostSearchView(ListView):
         return context
 
 
-class PremissionRequiredMixin:
-    pass
-
-
 class PostCreateView(LoginRequiredMixin, PermissionRequiredMixin,  CreateView):
     model = Post
     form_class = PostForm
@@ -82,10 +81,21 @@ class PostCreateView(LoginRequiredMixin, PermissionRequiredMixin,  CreateView):
     raise_exception = True
 
     def form_valid(self, form):
+
+        today = timezone.now().date()
+        news_count = Post.objects.filter(
+            author=self.request.user,
+            created_at__date=today,
+            post_type=Post.NEWS
+        ).count()
+
+        if news_count >= 3:
+            raise ValidationError('Вы не можете публиковать более трех новостей в день.')
+
         if 'news/create' in self.request.path:
-            form.instance.post_type = 'Новость'
+            form.instance.post_type = Post.NEWS
         elif 'articles/create' in self.request.path:
-            form.instance.post_type = 'Статья'
+            form.instance.post_type = Post.ARTICLE
 
         return super().form_valid(form)
 
@@ -131,3 +141,41 @@ def upgrade_me(request):
     if not request.user.groups.filter(name='authors').exists():
         premium_group.user_set.add(user)
     return redirect('/')
+
+
+class CategoryDetailView(DetailView):
+    model = Category
+    template_name = 'category_detail.html'
+    context_object_name = 'category'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        post_categories = PostCategory.objects.filter(category=self.object)
+
+        news = Post.objects.filter(
+            postcategory__category=self.object,
+            post_type=Post.NEWS
+        )
+
+        articles = Post.objects.filter(
+            postcategory__category=self.object,
+            post_type=Post.ARTICLE
+        )
+
+        context['news'] = news
+        context['articles'] = articles
+
+        return context
+
+
+class CategoryListView(ListView):
+    model = Category
+    template_name = 'category_list.html'
+    context_object_name = 'categories'
+
+
+def subscribe_to_category(request, category_id):
+    category = get_object_or_404(Category, id=category_id)
+    category.subscribers.add(request.user)
+    return redirect('category_detail', category_id=category.id)

@@ -1,0 +1,32 @@
+{% extends 'flatpages/default.html' %}
+
+{% block content %}
+<h1>{{ category.name }}</h1>
+
+<h2>Новости:</h2>
+{% for post in news %}
+    <div class="news-item">
+        <h3>{{ post.title }}</h3>
+        <p>{{ post.text|truncatewords:20 }}</p>
+        <a href="{% url 'post_detail' post.pk %}">Читать далее</a>
+    </div>
+{% empty %}
+    <p>Новостей в этой категории пока нет.</p>
+{% endfor %}
+
+
+<h2>Статьи:</h2>
+{% for post in articles %}
+    <div class="article-item">
+        <h3>{{ post.title }}</h3>
+        <p>{{ post.text|truncatewords:20 }}</p>
+        <a href="{% url 'post_detail' post.pk %}">Читать далее</a>
+    </div>
+{% empty %}
+    <p>Статей в этой категории пока нет.</p>
+{% endfor %}
+<form method="post" action="{% url 'subscribe' category.id %}">
+    {% csrf_token %}
+    <button type="submit">Подписаться на эту категорию!</button>
+</form>
+{% endblock %}

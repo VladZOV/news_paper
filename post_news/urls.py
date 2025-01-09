@@ -2,7 +2,7 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
 # Импортируем созданное нами представление
 from .views import PostList, PostDetail, PostSearchView, PostCreateView, PostUpdateView, PostDeleteView, \
-    BaseRegisterView, upgrade_me
+    BaseRegisterView, upgrade_me, CategoryListView, CategoryDetailView, subscribe_to_category
 
 urlpatterns = [
    # path — означает путь.
@@ -30,4 +30,7 @@ urlpatterns = [
         BaseRegisterView.as_view(template_name='post_news/signup.html'),
         name='signup'),
    path('upgrade/', upgrade_me, name='upgrade'),
+   path('categories/', CategoryListView.as_view(), name='category_list'),
+   path('category/<int:pk>/', CategoryDetailView.as_view(), name='category_detail'),
+   path('subscribe/<int:category_id>/', subscribe_to_category, name='subscribe'),
 ]
