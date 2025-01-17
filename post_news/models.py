@@ -2,6 +2,7 @@ from django.core.mail import send_mail
 from django.db import models
 from django.contrib.auth.models import User
 from django.template.loader import render_to_string
+from .tasks import send_post_notification
 
 
 class Author(models.Model):
@@ -86,8 +87,12 @@ class Post(models.Model):
             send_mail(subject, message, 'from@example.com', [user.email])
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
         super().save(*args, **kwargs)
         self.notify_subscribers()
+        if is_new:
+            # Асинхронная отправка уведомлений
+            send_post_notification.delay(self.id)
 
 
 class PostCategory(models.Model):

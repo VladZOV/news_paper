@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     # ... include the providers you want to enable:
     'allauth.socialaccount.providers.google',
     'django_apscheduler',
+    'django_celery_beat',
 ]
 
 SITE_ID = 1
@@ -171,3 +172,10 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # адрес отправителя по �
 
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"
 APSCHEDULER_RUN_NOW_TIMEOUT = 25
+
+
+CELERY_BROKER_URL = 'redis://:@'  # redis host
+CELERY_RESULT_BACKEND = 'redis://:@'  # redis host
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
