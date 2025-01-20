@@ -1,5 +1,6 @@
 {% extends 'flatpages/default.html' %}
 {% load custom_tags %}
+{% load cache %}
 
 {% block title %}
 Posts
@@ -43,6 +44,26 @@ Posts
        <h2>Новостей и статей нет!</h2>
    {% endif %}
 
+{% cache 1800 main_menu %}
+    <nav>
+        <ul>
+            <li><a href="{% url 'post_list' %}">Главная</a></li>
+            <li><a href="{% url 'news_create' %}">Создать новость</a></li>
+
+        </ul>
+    </nav>
+{% endcache %}
+
+{% cache 3600 sidebar %}
+    <div class="sidebar">
+        <h3>Категории</h3>
+        <ul>
+            {% for category in categories %}
+                <li>{{ category.name }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endcache %}
 
 {% if page_obj.has_previous %}
 <!--        {# Для каждой ссылки пагинации указываем обработку через новый тег #}-->

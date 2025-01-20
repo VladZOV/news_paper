@@ -2,12 +2,15 @@ from datetime import datetime
 
 from django.utils import timezone
 
+from django.core.cache import cache
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse_lazy
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 # Импортируем класс, который говорит нам о том,
 # что в этом представлении мы будем выводить список объектов из БД
 from django.views.generic import ListView, DetailView, DeleteView, UpdateView, CreateView, TemplateView
@@ -44,6 +47,10 @@ class PostList(ListView):
 
         return context
 
+    @method_decorator(cache_page(60))  # кэш на 1 минуту для главной страницы
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
 
 class PostDetail(DetailView):
     # Модель всё та же, но мы хотим получать информацию по отдельному товару
@@ -52,6 +59,34 @@ class PostDetail(DetailView):
     template_name = 'post.html'
     # Название объекта, в котором будет выбранный пользователем продукт
     context_object_name = 'post'
+
+    @method_decorator(cache_page(300))  # кэш на 5 минут для страницы поста
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        # Кэширование объекта поста/статьи
+        cache_key = f'post_detail_{self.kwargs["pk"]}'
+        post = cache.get(cache_key)
+
+        if post is None:
+            post = super().get_object(queryset)
+
+            cache.set(cache_key, post, None)
+
+        return post
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        comments_key = f'post_comments_{self.object.pk}'
+        context['comments'] = cache.get(comments_key)
+
+        if context['comments'] is None:
+            context['comments'] = self.object.comments.all()
+            cache.set(comments_key, context['comments'], None)
+
+        return context
 
 
 class PostSearchView(ListView):
@@ -69,6 +104,10 @@ class PostSearchView(ListView):
         context = super().get_context_data(**kwargs)
         context['filterset'] = self.filterset
         return context
+
+    @method_decorator(cache_page(300))  # кэш на 5 минут для поиска
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
 
 
 class PostCreateView(LoginRequiredMixin, PermissionRequiredMixin,  CreateView):
@@ -97,7 +136,12 @@ class PostCreateView(LoginRequiredMixin, PermissionRequiredMixin,  CreateView):
         elif 'articles/create' in self.request.path:
             form.instance.post_type = Post.ARTICLE
 
-        return super().form_valid(form)
+        response = super().form_valid(form)
+
+        cache.delete_pattern('post_list_*')
+        cache.delete_pattern('search_results_*')
+
+        return response
 
 
 class PostUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
@@ -109,6 +153,21 @@ class PostUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     permission_required = 'post_news.change_post'
     raise_exception = True
 
+    def form_valid(self, form):
+
+        old_post = self.get_object()
+
+        response = super().form_valid(form)
+
+        cache_key = f'post_detail_{self.object.pk}'
+        cache.delete(cache_key)
+
+        cache.delete_pattern(f'post_comments_{self.object.pk}')
+        cache.delete_pattern('post_list_*')
+        cache.delete_pattern('search_results_*')
+
+        return response
+
 
 class PostDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = Post
@@ -117,6 +176,20 @@ class PostDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     login_url = reverse_lazy('account_login')
     permission_required = 'post_news.delete_post'
     raise_exception = True
+
+    def post(self, request, *args, **kwargs):
+
+        post = self.get_object()
+
+        response = super().post(request, *args, **kwargs)
+        cache_key = f'post_detail_{post.pk}'
+        cache.delete(cache_key)
+
+        cache.delete_pattern(f'post_comments_{post.pk}')
+        cache.delete_pattern('post_list_*')
+        cache.delete_pattern('search_results_*')
+
+        return response
 
 
 class BaseRegisterView(CreateView):
@@ -173,6 +246,10 @@ class CategoryListView(ListView):
     model = Category
     template_name = 'category_list.html'
     context_object_name = 'categories'
+
+    @method_decorator(cache_page(600))  # кэш на 10 минут для списка категорий
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
 
 
 def subscribe_to_category(request, category_id):
